@@ -2,16 +2,17 @@
 
 Some plugins to help draw levels and assets for my games using GIMP.
 
-## Getting Started
+## Windows 11
 
-### Dependencies
+### Prerequisites
 
-* TODO
+* Have installed the following in default locations
+  * GIMP 2
 
 ### Installing
 
-* TODO
+* Run `setup_windows11.ps1` in Powershell console
+    * set `-Global` flag to copy plugins for all users (`setup_windows11.ps1 -Global`), or
+    * set `-UserName` instead to choose the current user to copy plugin for (`setup_windows11.ps1 -User myUserName`)
 
-### Executing program
-
-* TODO
+* The script assumes all folders are in default locations - just edit `$foldersGlobal` / `$foldersLocal` if this isn't the case.

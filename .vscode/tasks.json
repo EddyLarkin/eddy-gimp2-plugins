@@ -1,0 +1,26 @@
+{
+    // Tasks for running in VS code
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "test",
+            "type": "shell",
+            "command": "${workspaceFolder}\\setup_windows11.ps1 -Verify -Global; ${workspaceFolder}\\setup_windows11.ps1 -Verify",
+            "group": "test",
+            "presentation": {
+                "clear": true
+            }
+        },
+        {
+            "label": "run",
+            "type": "shell",
+            "command": "${workspaceFolder}\\setup_windows11.ps1",
+            "presentation": {
+                "clear": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}
