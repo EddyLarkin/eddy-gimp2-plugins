@@ -7,7 +7,7 @@
         {
             "label": "test",
             "type": "shell",
-            "command": "${workspaceFolder}\\setup_windows11.ps1 -Verify -Global; ${workspaceFolder}\\setup_windows11.ps1 -Verify",
+            "command": "${workspaceFolder}\\setup_windows11.ps1 -Verify",
             "group": "test",
             "presentation": {
                 "clear": true

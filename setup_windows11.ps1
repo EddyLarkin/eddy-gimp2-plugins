@@ -51,10 +51,13 @@ foreach ($file in $pythonPluginsAllFiles) {
             Write-Output ("Checking {0}:" -f $fullFileName)
         }
         $pylintOutput = pylint $fullFileName
-        if ((pylint-exit $pylintOutput) -eq 0){
+        if ($LastExitCode -eq 0){
             [void]$pythonPluginsFiles.Add($fullFileName)
         } else {
-            Write-Output $pylintOutput
+            Write-Error ("pylint error for {0}" -f $fullFileName)
+            if ($Verify){
+                Write-Output $pylintOutput
+            }
         }
     }
 }
@@ -68,12 +71,12 @@ if ([string]::IsNullOrEmpty($targetFolder)){
 
 # Copy files over
 if (-not $Verify) {
-    foreach ($file in $pythonPluginsAllFiles) {
+    foreach ($file in $pythonPluginsFiles) {
         Copy-Item -Path $file -Destination $targetFolder
     }
 }
 else {
-    foreach ($file in $pythonPluginsAllFiles) {
+    foreach ($file in $pythonPluginsFiles) {
         Write-Output ("Will add {0}" -f $file)
     }
 }
