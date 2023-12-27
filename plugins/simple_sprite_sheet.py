@@ -2,16 +2,11 @@
 
 Provides a GIMP plugin for naively separating layers into multiple frames on a sprite sheet
 """
-import pathlib
-from typing import Any, List, Tuple
-import gimpfu # pylint: disable=syntax-error
+import os
+import gimpfu
 
-def _get_layer_start_end_indices(
-    layers: int,
-    sub_layers: int,
-    guides_per_layer: int,
-    guides_bottom: int
-) -> List[Tuple[int, int]]:
+def _get_layer_start_end_indices(layers, sub_layers, guides_per_layer, guides_bottom):
+    # type: (int, int, int, int) -> List[Tuple[int, int]]
     number_layers = layers - guides_bottom
     assert number_layers > 0
 
@@ -21,25 +16,18 @@ def _get_layer_start_end_indices(
 
     return ((i, i + sub_layers - 1) for i in range(0, number_layers, layer_size))
 
-def _get_number_columns(
-    number_frames: int,
-    source_width: int,
-    max_columns: int, max_width: int
-) -> int:
+def _get_number_columns(number_frames, source_width, max_columns, max_width):
+    # type: (int, int, int, int) -> int
     assert source_width > 0
     assert max_columns > 0
 
-    max_columns_from_width: int = max_width / source_width
+    max_columns_from_width = max_width / source_width
     assert max_columns_from_width > 0
 
     return min(number_frames, max_columns, max_columns_from_width)
 
-def _get_out_dimensions(
-    source_width: int,
-    source_height: int,
-    number_layers: int,
-    number_columns: int
-) -> Tuple[int, int]:
+def _get_out_dimensions(source_width, source_height, number_layers, number_columns):
+    # type: (int, int, int, int) -> Tuple[int, int]
     assert 0 < number_columns <= number_layers
     number_rows = (number_layers / number_columns) + int(bool(number_layers % number_columns))
 
@@ -47,10 +35,8 @@ def _get_out_dimensions(
     height = source_height * number_rows
     return (width, height)
 
-def _get_layers_to_draw(
-    all_layers: List[Any],
-    layer_start_end_indices: List[Tuple[int, int]]
-) -> List[List[Any]]:
+def _get_layers_to_draw(all_layers, layer_start_end_indices):
+    # type: (List[Any], List[Tuple[int, int]]) -> List[List[Any]]
     layers_to_draw = []
     for start_index, end_index in layer_start_end_indices:
         assert start_index > end_index
@@ -60,12 +46,8 @@ def _get_layers_to_draw(
 
     return layers_to_draw
 
-def _draw_layers_to_image(
-    image: gimpfu.gimp.Image,
-    source_width: int, source_height: int,
-    number_columns: int,
-    layer_groups: List[List[Any]]
-) -> None:
+def _draw_layers_to_image(image, source_width, source_height, number_columns, layer_groups):
+    # type: (gimpfu.gimp.Image, int, int, int, List[List[Any]]) -> None
     column_index = 0
     row_index = 0
     for layer_group in layer_groups:
@@ -85,19 +67,21 @@ def _draw_layers_to_image(
 
     image.merge_visible_layers(0)
 
-def _get_file_name(timg: Any) -> str:
-    path = pathlib.Path(timg.filename)
-    return path.with_suffix(".png").resolve()
+def _get_file_name(timg):
+    # type: (Any) -> str
+    file_name, = os.path.splitext(timg.filename)
+    return "{}.png".format(file_name)
 
 def simple_sprite_sheet( # pylint: disable=too-many-arguments
-    timg,
-    tdrawable,
-    sub_layers: int = 2,
-    guides_per_layer: int = 0,
-    guides_bottom: int = 1,
-    max_columns: int = 16,
-    max_width: int = 1024
-) -> None:
+        timg,
+        tdrawable,
+        sub_layers=2,
+        guides_per_layer=0,
+        guides_bottom=1,
+        max_columns=16,
+        max_width=1024
+):
+    # type: (Any, Any, int, int, int, int, int) -> None
     """
     Automatically add shading to a pixel drawing
 
@@ -127,7 +111,7 @@ def simple_sprite_sheet( # pylint: disable=too-many-arguments
     layer_groups = _get_layers_to_draw(
         timg.layers, layer_start_end_indices)
 
-    out_image = gimpfu.gimp.Image(out_width, out_height, gimpfu.RGB)
+    out_image = gimpfu.gimp.Image(out_width, out_height, gimpfu.gimpcolor.RGB)
     _draw_layers_to_image(
         out_image, tdrawable.width, tdrawable.height, number_columns, layer_groups)
 
