@@ -9,6 +9,10 @@ Some plugins to help draw levels and assets for my games using GIMP.
 * Have installed the following in default locations
   * GIMP 2
 
+* Have the following Python libraries
+  * `pylint`
+  * `bitarray`
+
 ### Installing
 
 * Run `setup_windows11.ps1` in Powershell console

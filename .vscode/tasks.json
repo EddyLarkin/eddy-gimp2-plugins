@@ -14,9 +14,10 @@
             }
         },
         {
-            "label": "run",
+            "label": "build",
             "type": "shell",
             "command": "${workspaceFolder}\\setup_windows11.ps1",
+            "group": "build",
             "presentation": {
                 "clear": true
             },

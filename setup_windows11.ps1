@@ -32,7 +32,32 @@ else {
     }
 }
 
-[string]$sourcePlugins = "{0}\plugins\*.py" -f $PSScriptRoot
+# Get all plugins
+[string]$pythonPluginsFolder = "{0}\plugins" -f $PSScriptRoot
+[string]$pythonPluginsPattern = "*.py" -f $PSScriptRoot
+[System.Collections.ArrayList]$pythonPluginsFiles = @()
+
+if (-not (Test-Path $pythonPluginsFolder)){
+    Write-Error ("Expected plugins not found at {0}" -f $pythonPluginsFolder)
+}
+
+$pythonPluginsAllFiles = Get-ChildItem $pythonPluginsFolder
+foreach ($file in $pythonPluginsAllFiles) {
+    if ($file.Name -like $pythonPluginsPattern) {
+        [string]$fullFileName = "{0}\{1}" -f $pythonPluginsFolder, $file.Name
+
+        # Add if linting passes
+        if ($Verify) {
+            Write-Output ("Checking {0}:" -f $fullFileName)
+        }
+        $pylintOutput = pylint $fullFileName
+        if ((pylint-exit $pylintOutput) -eq 0){
+            [void]$pythonPluginsFiles.Add($fullFileName)
+        } else {
+            Write-Output $pylintOutput
+        }
+    }
+}
 
 # Verify target locations exist
 if ([string]::IsNullOrEmpty($targetFolder)){
@@ -41,12 +66,14 @@ if ([string]::IsNullOrEmpty($targetFolder)){
     Write-Output ("Plugins root directory found at {0}" -f $targetFolder)
 }
 
-# Verify source location exists
-if (-not (Test-Path $sourcePlugins)){
-    Write-Error ("Expected plugins not found at {0}" -f $sourcePlugins)
-}
-
 # Copy files over
 if (-not $Verify) {
-    Copy-Item -Path $sourcePlugins -Destination $targetFolder
+    foreach ($file in $pythonPluginsAllFiles) {
+        Copy-Item -Path $file -Destination $targetFolder
+    }
+}
+else {
+    foreach ($file in $pythonPluginsAllFiles) {
+        Write-Output ("Will add {0}" -f $file)
+    }
 }
