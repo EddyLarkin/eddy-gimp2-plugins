@@ -10,13 +10,22 @@ param(
 )
 
 # Expected locations in priority orders
+$pythonExes = @("C:\Python27\python.exe")
 $foldersGlobal = @("C:\Program Files\GIMP 2\lib\gimp\2.0\plug-ins")
 $foldersLocal = @("C:\Users\{0}\AppData\Roaming\GIMP\2.10\plug-ins" -f $UserName)
 
 # Determine locations
+[string]$pythonExe = $null
+foreach ($file in $pythonExes) {
+    if (Test-Path -Type Leaf $file) {
+        $pythonExe = $file
+        break
+    }
+}
+
 [string]$targetFolder = $null
 if ($Global) {
-    foreach ( $folder in $foldersGlobal) {
+    foreach ($folder in $foldersGlobal) {
         if (Test-Path -Path $folder) {
             $targetFolder = $folder
             break
@@ -24,7 +33,7 @@ if ($Global) {
     }
 }
 else {
-    foreach ( $folder in $foldersLocal) {
+    foreach ($folder in $foldersLocal) {
         if (Test-Path -Path $folder) {
             $targetFolder = $folder
             break
@@ -36,6 +45,10 @@ else {
 [string]$pythonPluginsFolder = "{0}\plugins" -f $PSScriptRoot
 [string]$pythonPluginsPattern = "*.py" -f $PSScriptRoot
 [System.Collections.ArrayList]$pythonPluginsFiles = @()
+
+if ([string]::IsNullOrEmpty($pythonExe)){
+    Write-Error ("Python executable not found")
+}
 
 if (-not (Test-Path $pythonPluginsFolder)){
     Write-Error ("Expected plugins not found at {0}" -f $pythonPluginsFolder)
@@ -50,7 +63,7 @@ foreach ($file in $pythonPluginsAllFiles) {
         if ($Verify) {
             Write-Output ("Checking {0}:" -f $fullFileName)
         }
-        $pylintOutput = pylint $fullFileName
+        $pylintOutput = Invoke-Expression ("{0} -m pylint {1}" -f $pythonExe, $fullFileName)
         if ($LastExitCode -eq 0){
             [void]$pythonPluginsFiles.Add($fullFileName)
         } else {

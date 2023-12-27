@@ -135,13 +135,13 @@ def simple_sprite_sheet( # pylint: disable=too-many-arguments
     gimpfu.pdb.gimp_file_save(out_image, out_image.layers[0], file_name, file_name)
 
 gimpfu.register(
-    "python_fu_spriteSheet",
+    "python_fu_simple_sprite_sheet",
     "Create a sprite sheet from the specified layers",
     "Create a sprite sheet from the specified layers",
     "Eddy Larkin",
     "Eddy Larkin",
-    "2014",
-    "<Image>/Eddy/_SimpleSpriteSheet...",
+    "2023",
+    "<Image>/Filters/Eddy/_SimpleSpriteSheet...",
     "*",
     [
         (gimpfu.PF_INT, "sub_layers", "Layers per frame", 2),
