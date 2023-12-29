@@ -63,7 +63,7 @@ foreach ($file in $pythonPluginsAllFiles) {
         if ($Verify) {
             Write-Output ("Checking {0}:" -f $fullFileName)
         }
-        $pylintOutput = Invoke-Expression ("{0} -m pylint {1}" -f $pythonExe, $fullFileName)
+        $pylintOutput = Invoke-Expression ("{0} -m pylint {1} --generated-members=gimpfu.*" -f $pythonExe, $fullFileName)
         if ($LastExitCode -eq 0){
             [void]$pythonPluginsFiles.Add($fullFileName)
         } else {
