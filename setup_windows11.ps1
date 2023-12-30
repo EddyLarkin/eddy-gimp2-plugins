@@ -42,8 +42,8 @@ else {
 }
 
 # Get all plugins
-[string]$pythonPluginsFolder = "{0}\plugins" -f $PSScriptRoot
-[string]$pythonPluginsPattern = "*.py" -f $PSScriptRoot
+[string]$pythonPluginsFolder = "{0}\src\plugins" -f $PSScriptRoot
+[string]$pythonPluginsRegex = "(^|[\\\/])[^_]\w*\.py$" # any py file not starting with an underscore
 [System.Collections.ArrayList]$pythonPluginsFiles = @()
 
 if ([string]::IsNullOrEmpty($pythonExe)){
@@ -56,7 +56,7 @@ if (-not (Test-Path $pythonPluginsFolder)){
 
 $pythonPluginsAllFiles = Get-ChildItem $pythonPluginsFolder
 foreach ($file in $pythonPluginsAllFiles) {
-    if ($file.Name -like $pythonPluginsPattern) {
+    if ($file.Name -match $pythonPluginsRegex) {
         [string]$fullFileName = "{0}\{1}" -f $pythonPluginsFolder, $file.Name
 
         # Add if linting passes
@@ -73,6 +73,11 @@ foreach ($file in $pythonPluginsAllFiles) {
             }
         }
     }
+}
+
+# Run tests on plugin files
+if ($Verify){
+    Invoke-Expression ("{0} -m unittest discover -s src" -f $pythonExe)
 }
 
 # Verify target locations exist
