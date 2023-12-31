@@ -6,6 +6,25 @@ Provides a GIMP plugin for naively separating layers into multiple frames on a s
 import os
 import gimpfu
 
+class PixelSize(object): #pylint: disable=too-few-public-methods
+    """Width and height in pixels used when drawing with GIMP plugins
+
+    Attributes:
+        width:  Width of a pixel region
+        height: Height of a pixel region
+    """
+
+    def __init__(self, width, height):
+        # type: (GimpWrapper, any, any) -> None
+        """Initialise the wrapper with the gimp and pdb modules
+
+        Args:
+            width:  Width of a pixel region
+            height: Height of a pixel region
+        """
+        self.width = width
+        self.height = height
+
 class GimpWrapper(object):
     """Wrapper functionality in the gimpfu module
 
@@ -53,7 +72,6 @@ class GimpWrapper(object):
     steps_max = 1
     steps_current = 0
 
-
 def _get_layer_start_end_indices(layers, sub_layers, guides_per_layer, guides_bottom):
     # type: (int, int, int, int) -> list[tuple[int, int]]
     assert sub_layers > 0
@@ -76,14 +94,14 @@ def _get_number_columns(number_frames, source_width, max_columns, max_width):
 
     return min(number_frames, max_columns, max_columns_from_width)
 
-def _get_out_dimensions(source_width, source_height, number_layers, number_columns):
-    # type: (int, int, int, int) -> tuple[int, int]
+def _get_out_dimensions(source_size, number_layers, number_columns):
+    # type: (PixelSize, int, int) -> PixelSize
     assert 0 < number_columns <= number_layers
     number_rows = (number_layers / number_columns) + int(bool(number_layers % number_columns))
 
-    width = source_width * number_columns
-    height = source_height * number_rows
-    return (width, height)
+    width = source_size.width * number_columns
+    height = source_size.height * number_rows
+    return PixelSize(width, height)
 
 def _get_layers_to_draw(all_layers, layer_start_end_indices):
     # type: (list, list[tuple[int, int]]) -> list[list]
@@ -99,25 +117,24 @@ def _get_layers_to_draw(all_layers, layer_start_end_indices):
 
     return layers_to_draw
 
-def _get_image_from_layers( # pylint: disable=too-many-locals,too-many-arguments
-        gimp, source_width, source_height, number_layers, number_columns, layer_groups):
-    # type: (GimpWrapper, int, int, int, int, list[list]) -> gimpfu.gimp.Image
+def _get_image_from_layers(
+        gimp, source_size, number_layers, number_columns, layer_groups):
+    # type: (GimpWrapper, PixelSize, int, int, list[list]) -> gimpfu.gimp.Image
     # TODO split up into shorter functions # pylint: disable=fixme
     assert layer_groups
     assert layer_groups[0]
 
-    out_width, out_height = _get_out_dimensions(
-        source_width, source_height, number_layers, number_columns)
+    out_size = _get_out_dimensions(
+        source_size, number_layers, number_columns)
 
-    image = gimpfu.gimp.Image(out_width, out_height, gimpfu.RGB)
-
+    image = gimpfu.gimp.Image(out_size.width, out_size.height, gimpfu.RGB)
     gimp.start_progress_bar(len(layer_groups))
 
     column_index = 0
     row_index = 0
     for layer_group in layer_groups:
-        offset_x = column_index * source_width
-        offset_y = row_index * source_height
+        offset_x = column_index * source_size.width
+        offset_y = row_index * source_size.height
 
         for layer in reversed(layer_group):
             layer_new = gimpfu.pdb.gimp_layer_new_from_drawable(layer, image)
@@ -140,7 +157,7 @@ def _get_file_name(timg):
     file_name = os.path.splitext(timg.filename)[0]
     return "{}.png".format(file_name)
 
-def simple_sprite_sheet( # pylint: disable=too-many-arguments
+def simple_sprite_sheet( # pylint: disable=too-many-arguments,too-many-locals
         timg,
         tdrawable,
         sub_layers=2,
@@ -180,8 +197,9 @@ def simple_sprite_sheet( # pylint: disable=too-many-arguments
     layer_groups = _get_layers_to_draw(
         timg.layers, layer_start_end_indices)
 
+    source_size = PixelSize(tdrawable.width, tdrawable.height)
     out_image = _get_image_from_layers(
-        gimp, tdrawable.width, tdrawable.height, number_layers, number_columns, layer_groups)
+        gimp, source_size, number_layers, number_columns, layer_groups)
 
     file_name = _get_file_name(timg)
     out_layer = gimpfu.pdb.gimp_image_merge_visible_layers(out_image, gimpfu.CLIP_TO_IMAGE)
