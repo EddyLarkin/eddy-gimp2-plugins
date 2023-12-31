@@ -108,19 +108,21 @@ def simple_sprite_sheet( # pylint: disable=too-many-arguments
     """
     Automatically add shading to a pixel drawing
 
-    :param timg            : Root GIMP object
-    :param tdrawable       : GIMP object to draw to and from
-    :param sub_layers      : Number of sublayers to combine together for each sprite sheet layer
-    :param guides_per_layer: Number of guide layers to ignore per each sprite sheet layer
-    :param guides_bottom   : Number of guide layers to ignore for the whole sprite sheet
-    :param max_columns     : Maximum allowed number of columns for the sheet
-    :param max_width       : Maximum total width allowed for the sheet (overrides max_columns)
+    Args:
+        timg:             Root GIMP object
+        tdrawable:        GIMP object to draw to and from
+        sub_layers:       Number of sublayers to combine together for each sprite sheet layer
+        guides_per_layer: Number of guide layers to ignore per each sprite sheet layer
+        guides_bottom:    Number of guide layers to ignore for the whole sprite sheet
+        max_columns:      Maximum allowed number of columns for the sheet
+        max_width:        Maximum total width allowed for the sheet (overrides max_columns)
 
-    :raises ValueError: If sub_layers is less than 1
-    :raises ValueError: If max_columns is less than 1
-    :raises ValueError: If max_width is less than image width
-    :raises ValueError: If there are no layers left after subrtracting
-                            the values of guides_per_layer and guides_bottom
+    Raises:
+        ValueError: If sub_layers is less than 1
+        ValueError: If max_columns is less than 1
+        ValueError: If max_width is less than image width
+        ValueError: If there are no layers left after subrtracting
+                    the values of guides_per_layer and guides_bottom
     """
     layer_start_end_indices = _get_layer_start_end_indices(
         len(timg.layers), sub_layers, guides_per_layer, guides_bottom)
