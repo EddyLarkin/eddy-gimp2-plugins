@@ -6,6 +6,54 @@ Provides a GIMP plugin for naively separating layers into multiple frames on a s
 import os
 import gimpfu
 
+class GimpWrapper(object):
+    """Wrapper functionality in the gimpfu module
+
+    Note:
+        gimpfu doesn't seem to play nicely with other modules so here's a wrapper
+        to insulte unit tests from having to import it directly
+
+    Attributes:
+        steps_max:     Total steps to show when logging progress
+        steps_current: Current step to show when logging progress
+        gimp:          Reference to the gimpfu.gimp module being wrapped
+        pdb:           Reference to the gimpfu.pdb module being wrapped
+    """
+
+    def __init__(self, gimp, pdb):
+        # type: (GimpWrapper, any, any) -> None
+        """Initialise the wrapper with the gimp and pdb modules
+
+        Args:
+            @gimp: Gimp module to wrap
+            @pdb: Gimp plugin database module to wrap
+        """
+        self.gimp = gimp
+        self.pdb = pdb
+
+    def start_progress_bar(self, steps_max=1):
+        # type: (GimpWrapper, int) -> None
+        """Start the progress bar from zero
+
+        Args:
+            @steps_max: Maximum number of steps to expect
+        """
+        self.steps_max = steps_max
+
+    def increment_progress_bar(self, steps=1):
+        # type: (GimpWrapper, int) -> None
+        """Start the progress bar from zero
+
+        Args:
+            @steps: Number of steps to increment by
+        """
+        self.steps_current = min(self.steps_max, self.steps_current + steps)
+        self.gimp.progress_update(float(self.steps_current) / self.steps_max)
+
+    steps_max = 1
+    steps_current = 0
+
+
 def _get_layer_start_end_indices(layers, sub_layers, guides_per_layer, guides_bottom):
     # type: (int, int, int, int) -> list[tuple[int, int]]
     assert sub_layers > 0
@@ -51,9 +99,9 @@ def _get_layers_to_draw(all_layers, layer_start_end_indices):
 
     return layers_to_draw
 
-def _get_image_from_layers( # pylint: disable=too-many-locals
-        source_width, source_height, number_layers, number_columns, layer_groups):
-    # type: (int, int, int, int, list[list]) -> gimpfu.gimp.Image
+def _get_image_from_layers( # pylint: disable=too-many-locals,too-many-arguments
+        gimp, source_width, source_height, number_layers, number_columns, layer_groups):
+    # type: (GimpWrapper, int, int, int, int, list[list]) -> gimpfu.gimp.Image
     # TODO split up into shorter functions # pylint: disable=fixme
     assert layer_groups
     assert layer_groups[0]
@@ -63,9 +111,8 @@ def _get_image_from_layers( # pylint: disable=too-many-locals
 
     image = gimpfu.gimp.Image(out_width, out_height, gimpfu.RGB)
 
-    layer_groups_total = len(layer_groups)
+    gimp.start_progress_bar(len(layer_groups))
 
-    layer_group_index = 0
     column_index = 0
     row_index = 0
     for layer_group in layer_groups:
@@ -83,9 +130,7 @@ def _get_image_from_layers( # pylint: disable=too-many-locals
             column_index = 0
             row_index += 1
 
-        layer_group_index += 1
-        progress = layer_group_index / float(layer_groups_total)
-        gimpfu.gimp.progress_update(progress)
+        gimp.increment_progress_bar()
 
     assert image.layers
     return image
@@ -124,6 +169,7 @@ def simple_sprite_sheet( # pylint: disable=too-many-arguments
         ValueError: If there are no layers left after subrtracting
                     the values of guides_per_layer and guides_bottom
     """
+    gimp = GimpWrapper(gimpfu.gimp, gimpfu.pdb)
     layer_start_end_indices = _get_layer_start_end_indices(
         len(timg.layers), sub_layers, guides_per_layer, guides_bottom)
 
@@ -135,7 +181,7 @@ def simple_sprite_sheet( # pylint: disable=too-many-arguments
         timg.layers, layer_start_end_indices)
 
     out_image = _get_image_from_layers(
-        tdrawable.width, tdrawable.height, number_layers, number_columns, layer_groups)
+        gimp, tdrawable.width, tdrawable.height, number_layers, number_columns, layer_groups)
 
     file_name = _get_file_name(timg)
     out_layer = gimpfu.pdb.gimp_image_merge_visible_layers(out_image, gimpfu.CLIP_TO_IMAGE)
