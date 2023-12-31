@@ -15,7 +15,7 @@ class PixelSize(object): #pylint: disable=too-few-public-methods
     """
 
     def __init__(self, width, height):
-        # type: (GimpWrapper, any, any) -> None
+        # type: (PixelSize, any, any) -> None
         """Initialise the wrapper with the gimp and pdb modules
 
         Args:
@@ -25,52 +25,193 @@ class PixelSize(object): #pylint: disable=too-few-public-methods
         self.width = width
         self.height = height
 
+    def __nonzero__(self):
+        # type: (PixelSize) -> bool
+        return self.width.__nonzero__() and self.height.__nonzero__()
+
 class GimpWrapper(object):
     """Wrapper functionality in the gimpfu module
 
     Note:
         gimpfu doesn't seem to play nicely with other modules so here's a wrapper
         to insulte unit tests from having to import it directly
-
-    Attributes:
-        steps_max:     Total steps to show when logging progress
-        steps_current: Current step to show when logging progress
-        gimp:          Reference to the gimpfu.gimp module being wrapped
-        pdb:           Reference to the gimpfu.pdb module being wrapped
     """
 
-    def __init__(self, gimp, pdb):
-        # type: (GimpWrapper, any, any) -> None
+    def __init__(self, gimpfu_module):
+        # type: (GimpWrapper, any) -> None
         """Initialise the wrapper with the gimp and pdb modules
 
         Args:
-            @gimp: Gimp module to wrap
-            @pdb: Gimp plugin database module to wrap
+            gimpfu: Gimpfu module to wrap
         """
-        self.gimp = gimp
-        self.pdb = pdb
+        assert gimpfu_module
+        self._gimpfu = gimpfu_module
 
     def start_progress_bar(self, steps_max=1):
         # type: (GimpWrapper, int) -> None
         """Start the progress bar from zero
 
         Args:
-            @steps_max: Maximum number of steps to expect
+            steps_max: Maximum number of steps to expect
         """
-        self.steps_max = steps_max
+        assert steps_max > 0
+        self._steps_max = steps_max
+        self._steps_current = 0
+        self.increment_progress_bar(0)
 
     def increment_progress_bar(self, steps=1):
         # type: (GimpWrapper, int) -> None
         """Start the progress bar from zero
 
         Args:
-            @steps: Number of steps to increment by
+            steps: Number of steps to increment by
         """
-        self.steps_current = min(self.steps_max, self.steps_current + steps)
-        self.gimp.progress_update(float(self.steps_current) / self.steps_max)
+        assert steps >= 0
+        self._steps_current = min(self._steps_max, self._steps_current + steps)
+        self._gimpfu.gimp.progress_update(float(self._steps_current) / self._steps_max)
 
-    steps_max = 1
-    steps_current = 0
+    def get_image(self, size, colour_channels=None):
+        # type: (GimpWrapper, PixelSize, any) -> GimpImage
+        """Create a new image from scratch at the given size
+
+        Args:
+            size:            Size of the image to create
+            colour_channels: Colour channels of the image to create
+        """
+        assert size
+        if not colour_channels:
+            colour_channels = self.rgb
+
+        return self._gimpfu.gimp.Image(size.width, size.height, colour_channels)
+
+    def new_layer_from_drawable(self, old_layer, new_image):
+        # type: (GimpImage, any, any) -> any
+        """Copies a layer to a new one and returns it
+
+        Args:
+            old_layer: Old layer to copy
+            new_image: Image to contain the copy
+        """
+        return self._gimpfu.pdb.gimp_layer_new_from_drawable(old_layer, new_image)
+
+    def flatten_and_export_image(self, image, file_name, clipping=None):
+        # type: (GimpWrapper, any, str, any) -> None
+        """Flatten visible layers in an image and save it as a png
+
+        Args:
+            image:     GIMP image to flatten and export
+            file_name: File name to write to
+            clipping:  Option for clipping merged layers
+        """
+        assert image
+        assert file_name
+        if not clipping:
+            clipping = self.clip_to_image
+
+        out_layer = self._gimpfu.pdb.gimp_image_merge_visible_layers(
+            image, clipping)
+        self._gimpfu.pdb.gimp_file_save(
+            image, out_layer, file_name, file_name)
+
+    @property
+    def rgb(self):
+        # type: (None) -> any
+        """Specifier for RGB color channels on an image"""
+        return self._gimpfu.RGB
+
+    @property
+    def clip_to_image(self):
+        # type: (None) -> any
+        """Specifier for clipping to an image when merging layers"""
+        return self._gimpfu.CLIP_TO_IMAGE
+
+    _steps_max = 1
+    _steps_current = 0
+
+class GimpImage(object):
+    """Wrapper for a GIMPFU image
+
+    Note:
+        gimpfu doesn't seem to play nicely with other modules so here's a wrapper
+        to insulte unit tests from having to import it directly
+
+    Attributes:
+        image: Gimp image being wrapped
+    """
+
+    def __init__(self, gimp_wrapper, image, file_name=None):
+        # type: (GimpImage, GimpWrapper, any, str) -> None
+        """Initialise the wrapper with the gimp and pdb modules
+
+        Args:
+            image: Gimp image to wrap
+        """
+        assert gimp_wrapper
+        assert image
+        if not file_name:
+            file_name = image.filename
+
+        self._gimp_wrapper = gimp_wrapper
+        self._image = image
+        self._file_name = file_name
+
+    def __nonzero__(self):
+        # type: (GimpImage) -> bool
+        return self._image and bool(self._image.layers)
+
+    @staticmethod
+    def new_image(gimp_wrapper, size, file_name=None, colour_channels=None):
+        # type: (GimpWrapper, PixelSize, str, any) -> GimpImage
+        """Create a new image from scratch at the given size
+
+        Args:
+            gimp_wrapper:    Wrapper for GIMP module
+            size:            Size of the image to create
+            file_name:       Default file name of the image to create
+            colour_channels: Colour channels of the image to create
+        """
+        assert size
+        image = gimp_wrapper.get_image(size, colour_channels)
+        return GimpImage(gimp_wrapper, image, file_name)
+
+    def add_layer(self, layer):
+        # type: (GimpImage, any) -> None
+        """Pushes a new layer onto the image
+
+        Args:
+            layer: Layer to add
+        """
+        self._image.add_layer(layer, -1)
+
+    def new_layer_from_drawable(self, old_layer):
+        # type: (GimpImage, any) -> any
+        """Copies a layer to a new one in this image and returns it
+
+        Args:
+            old_layer: Old layer to copy
+        """
+        return self._gimp_wrapper.new_layer_from_drawable(old_layer, self._image)
+
+    @property
+    def exported_file_name(self):
+        # type: (GimpImage) -> str
+        """Get an output file name from the image
+        """
+        file_name = os.path.splitext(self._file_name)[0]
+        return "{}.png".format(file_name)
+
+    def export_to_file(self, exported_file_name=None):
+        # type: (GimpImage) -> None
+        """Get an output file name from the image
+
+        Args:
+            exported_file_name: File name to use;
+                                defaults to image name with .png instead of .xcf
+        """
+        if not exported_file_name:
+            exported_file_name = self.exported_file_name
+
+        self._gimp_wrapper.flatten_and_export_image(self._image, exported_file_name)
 
 def _get_layer_start_end_indices(layers, sub_layers, guides_per_layer, guides_bottom):
     # type: (int, int, int, int) -> list[tuple[int, int]]
@@ -119,7 +260,7 @@ def _get_layers_to_draw(all_layers, layer_start_end_indices):
 
 def _get_image_from_layers(
         gimp, source_size, number_layers, number_columns, layer_groups):
-    # type: (GimpWrapper, PixelSize, int, int, list[list]) -> gimpfu.gimp.Image
+    # type: (GimpWrapper, PixelSize, int, int, list[list]) -> GimpImage
     # TODO split up into shorter functions # pylint: disable=fixme
     assert layer_groups
     assert layer_groups[0]
@@ -127,7 +268,7 @@ def _get_image_from_layers(
     out_size = _get_out_dimensions(
         source_size, number_layers, number_columns)
 
-    image = gimpfu.gimp.Image(out_size.width, out_size.height, gimpfu.RGB)
+    image = GimpImage.new_image(gimp, out_size)
     gimp.start_progress_bar(len(layer_groups))
 
     column_index = 0
@@ -137,10 +278,10 @@ def _get_image_from_layers(
         offset_y = row_index * source_size.height
 
         for layer in reversed(layer_group):
-            layer_new = gimpfu.pdb.gimp_layer_new_from_drawable(layer, image)
+            layer_new = image.new_layer_from_drawable(layer)
             layer_new.opacity = layer.opacity
             layer_new.set_offsets(offset_x, offset_y)
-            image.add_layer(layer_new, -1)
+            image.add_layer(layer_new)
 
         column_index += 1
         if column_index >= number_columns:
@@ -149,13 +290,8 @@ def _get_image_from_layers(
 
         gimp.increment_progress_bar()
 
-    assert image.layers
+    assert image
     return image
-
-def _get_file_name(timg):
-    # type: (any) -> str
-    file_name = os.path.splitext(timg.filename)[0]
-    return "{}.png".format(file_name)
 
 def simple_sprite_sheet( # pylint: disable=too-many-arguments,too-many-locals
         timg,
@@ -186,7 +322,8 @@ def simple_sprite_sheet( # pylint: disable=too-many-arguments,too-many-locals
         ValueError: If there are no layers left after subrtracting
                     the values of guides_per_layer and guides_bottom
     """
-    gimp = GimpWrapper(gimpfu.gimp, gimpfu.pdb)
+    gimp = GimpWrapper(gimpfu)
+    in_image = GimpImage(gimp, timg)
     layer_start_end_indices = _get_layer_start_end_indices(
         len(timg.layers), sub_layers, guides_per_layer, guides_bottom)
 
@@ -201,9 +338,7 @@ def simple_sprite_sheet( # pylint: disable=too-many-arguments,too-many-locals
     out_image = _get_image_from_layers(
         gimp, source_size, number_layers, number_columns, layer_groups)
 
-    file_name = _get_file_name(timg)
-    out_layer = gimpfu.pdb.gimp_image_merge_visible_layers(out_image, gimpfu.CLIP_TO_IMAGE)
-    gimpfu.pdb.gimp_file_save(out_image, out_layer, file_name, file_name)
+    out_image.export_to_file(in_image.exported_file_name)
 
 gimpfu.register(
     "python_fu_simple_sprite_sheet",
