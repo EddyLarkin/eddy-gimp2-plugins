@@ -15,7 +15,7 @@ class PixelSize(object): #pylint: disable=too-few-public-methods
     """
 
     def __init__(self, width, height):
-        # type: (PixelSize, any, any) -> None
+        # type: (PixelSize, int, int) -> None
         """Initialise the wrapper with the gimp and pdb modules
 
         Args:
@@ -28,6 +28,25 @@ class PixelSize(object): #pylint: disable=too-few-public-methods
     def __nonzero__(self):
         # type: (PixelSize) -> bool
         return self.width.__nonzero__() and self.height.__nonzero__()
+
+class PixelPosition(object): #pylint: disable=too-few-public-methods
+    """Co-ordinates of a pixel position used when drawing with GIMP plugins
+
+    Attributes:
+        x: x co-ordinate of a position
+        y: y co-ordinate of a position
+    """
+
+    def __init__(self, pos_x, pos_y):
+        # type: (PixelSize, int, int) -> None
+        """Initialise the wrapper with the gimp and pdb modules
+
+        Args:
+            x: x co-ordinate of a position
+            y: y co-ordinate of a position
+        """
+        self.pos_x = pos_x
+        self.pos_y = pos_y
 
 class GimpWrapper(object):
     """Wrapper functionality in the gimpfu module
@@ -92,7 +111,9 @@ class GimpWrapper(object):
             old_layer: Old layer to copy
             new_image: Image to contain the copy
         """
-        return self._gimpfu.pdb.gimp_layer_new_from_drawable(old_layer, new_image)
+        new_layer = self._gimpfu.pdb.gimp_layer_new_from_drawable(old_layer, new_image)
+        new_layer.opacity = old_layer.opacity
+        return new_layer
 
     def flatten_and_export_image(self, image, file_name, clipping=None):
         # type: (GimpWrapper, any, str, any) -> None
@@ -128,15 +149,46 @@ class GimpWrapper(object):
     _steps_max = 1
     _steps_current = 0
 
+class GimpLayer(object): #pylint: disable=too-few-public-methods
+    """Wrapper for a GIMPFU layer
+
+    Note:
+        gimpfu doesn't seem to play nicely with other modules so here's a wrapper
+        to insulte unit tests from having to import it directly
+    """
+
+    def __init__(self, gimp_wrapper, image, layer):
+        # type: (GimpLayer, GimpWrapper, any, any) -> None
+        """Initialise the wrapper with the gimp and pdb modules
+
+        Args:
+            gimp_wrapper: Wrapper for gimpfu module
+            image:         Gimp image to wrap
+            file_name:    Defult file name to save to
+        """
+        assert gimp_wrapper
+        assert image
+        assert layer
+
+        self._gimp_wrapper = gimp_wrapper
+        self._image = image
+        self._layer = layer
+
+    def set_offset(self, offset):
+        # type: (GimpLayer, PixelPosition) -> None
+        """Add an offset to this layer on its parent image
+
+        Args:
+            offset: Offset from (0, 0)
+        """
+        self._layer.set_offsets(offset.pos_x, offset.pos_y)
+
 class GimpImage(object):
     """Wrapper for a GIMPFU image
 
     Note:
         gimpfu doesn't seem to play nicely with other modules so here's a wrapper
         to insulte unit tests from having to import it directly
-
-    Attributes:
-        image: Gimp image being wrapped
     """
 
     def __init__(self, gimp_wrapper, image, file_name=None):
@@ -144,7 +196,9 @@ class GimpImage(object):
         """Initialise the wrapper with the gimp and pdb modules
 
         Args:
-            image: Gimp image to wrap
+            gimp_wrapper: Wrapper for gimpfu module
+            image:         Gimp image to wrap
+            file_name:    Defult file name to save to
         """
         assert gimp_wrapper
         assert image
@@ -154,6 +208,11 @@ class GimpImage(object):
         self._gimp_wrapper = gimp_wrapper
         self._image = image
         self._file_name = file_name
+
+        self._layers = []
+        for layer in image.layers:
+            self._layers.append(
+                GimpLayer(gimp_wrapper, image, layer))
 
     def __nonzero__(self):
         # type: (GimpImage) -> bool
@@ -175,22 +234,24 @@ class GimpImage(object):
         return GimpImage(gimp_wrapper, image, file_name)
 
     def add_layer(self, layer):
-        # type: (GimpImage, any) -> None
+        # type: (GimpImage, GimpLayer) -> None
         """Pushes a new layer onto the image
 
         Args:
             layer: Layer to add
         """
-        self._image.add_layer(layer, -1)
+        self._image.add_layer(layer._layer, -1)  # pylint: disable=protected-access
+        self._layers.append(layer)
 
     def new_layer_from_drawable(self, old_layer):
-        # type: (GimpImage, any) -> any
+        # type: (GimpImage, any) -> GimpLayer
         """Copies a layer to a new one in this image and returns it
 
         Args:
             old_layer: Old layer to copy
         """
-        return self._gimp_wrapper.new_layer_from_drawable(old_layer, self._image)
+        internal_layer = self._gimp_wrapper.new_layer_from_drawable(old_layer, self._image)
+        return GimpLayer(self._gimp_wrapper, self._image, internal_layer)
 
     @property
     def exported_file_name(self):
@@ -274,13 +335,14 @@ def _get_image_from_layers(
     column_index = 0
     row_index = 0
     for layer_group in layer_groups:
-        offset_x = column_index * source_size.width
-        offset_y = row_index * source_size.height
+        offset = PixelPosition(
+            column_index * source_size.width,
+            row_index * source_size.height
+        )
 
         for layer in reversed(layer_group):
             layer_new = image.new_layer_from_drawable(layer)
-            layer_new.opacity = layer.opacity
-            layer_new.set_offsets(offset_x, offset_y)
+            layer_new.set_offset(offset)
             image.add_layer(layer_new)
 
         column_index += 1
