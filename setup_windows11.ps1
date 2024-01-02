@@ -96,8 +96,7 @@ if (-not $Verify) {
     foreach ($file in $pythonPluginsFiles) {
         [string]$outFile = $file.Replace($pluginsInDirName, $pluginsOutDirName)
         Invoke-Expression ("python {0} --input {1} --output {2} --import-dir {3}" -f $combinePluginsScript, $file, $outFile, $pythonPluginsFolder)
-        
-        #Copy-Item -Path $outFile -Destination $targetFolder
+        Copy-Item -Path $outFile -Destination $targetFolder
     }
 }
 else {
