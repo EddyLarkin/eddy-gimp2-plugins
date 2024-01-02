@@ -4,6 +4,8 @@
 import argparse
 import re
 
+PREFIX_LINE = "#!/usr/bin/env python"
+
 def _get_local_import_path(line):
     import_path_re = re.compile(
         "^\s*from\s*(common\.[\._a-z]*)\s*import\s*\*.*$", re.MULTILINE)
@@ -25,9 +27,11 @@ def _append_contents_to_file(
         imports_already_included=[]
     ):
     file_in = open(file_name, mode = "r")
-
     for line in file_in.readlines():
+        if PREFIX_LINE in line:
+            continue
         local_path = _get_local_import_path(line)
+
         if not local_path:
             file_out.write(line)
         else:
@@ -35,13 +39,20 @@ def _append_contents_to_file(
                 continue
 
             imports_already_included.append(local_path)
+            file_out.write("\n")
+            file_out.write("### BEGIN CONTENT INCLUDED FROM {0} ###\n".format(local_path))
+
             global_path = _get_global_import_path(local_path, import_root)
             _append_contents_to_file(global_path, file_out, import_root, imports_already_included)
 
+            file_out.write("###   END CONTENT INCLUDED FROM {0} ###\n".format(local_path))
+
+    file_out.write("\n")
     file_in.close()
 
 def _parse_to_single_file(file_name, out_file_name, import_root=".\\"):
     file_out = open(out_file_name, "w")
+    file_out.write("{0}\n".format(PREFIX_LINE))
     _append_contents_to_file(file_name, file_out, import_root)
     file_out.close()
 

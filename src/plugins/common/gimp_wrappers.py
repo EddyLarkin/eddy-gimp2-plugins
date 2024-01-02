@@ -6,8 +6,8 @@ directly import it when debugging plugins from the command line
 """
 import os
 
-# need wildcard import so it's easy to merge everything into the
-# single files required by GIMP plugins
+# set up like this to allow separate modules when developing and testing
+# but to merge into a single file when exporting the plugin
 from common.gimp_base import * # pylint: disable=wildcard-import,relative-import
 
 class GimpWrapper(object):
