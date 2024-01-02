@@ -6,7 +6,7 @@ param(
     [switch]$Global = $false,
 
     [Parameter(HelpMessage="Expected user name for current user", Mandatory=$false)]
-    [string]$UserName = ""
+    [string]$UserName = "ejpla"
 )
 
 # Expected locations in priority orders
