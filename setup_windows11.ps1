@@ -90,13 +90,12 @@ if ([string]::IsNullOrEmpty($targetFolder)){
 # Copy files over if needed
 [string]$pluginsInDirName = "src\plugins"
 [string]$pluginsOutDirName = "out"
-[string]$pluginsInImportDirName = "{0}\src\plugins\common" -f $PSScriptRoot
 [string]$combinePluginsScript = "{0}\src\combine_plugins.py" -f $PSScriptRoot
 if (-not $Verify) {
     # Combine plugins into single files
     foreach ($file in $pythonPluginsFiles) {
         [string]$outFile = $file.Replace($pluginsInDirName, $pluginsOutDirName)
-        Invoke-Expression ("python {0} --input {1} --output {2} --import-dir {3}" -f $combinePluginsScript, $file, $outFile, $pluginsInImportDirName)
+        Invoke-Expression ("python {0} --input {1} --output {2} --import-dir {3}" -f $combinePluginsScript, $file, $outFile, $pythonPluginsFolder)
         
         #Copy-Item -Path $outFile -Destination $targetFolder
     }
@@ -106,7 +105,7 @@ else {
     foreach ($file in $pythonPluginsFiles) {
         [string]$outFile = $file.Replace($pluginsInDirName, $pluginsOutDirName)
         Write-Output ("Will add {0}:" -f $file)
-        Write-Output ("  Will run command: python {0} --input {1} --output {2} --import-dir {3} .\" -f $combinePluginsScript, $file, $outFile, $pluginsInImportDirName)
+        Write-Output ("  Will run command: python {0} --input {1} --output {2} --import-dir {3}" -f $combinePluginsScript, $file, $outFile, $pythonPluginsFolder)
         Write-Output ("  Will copy: {0} to {1}" -f $outFile, $targetFolder)
     }
 }
